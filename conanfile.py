@@ -8,15 +8,14 @@ def merge_dicts_for_sdk(a, b):
 
 class AwssdkcppConan(ConanFile):
     name = "aws-sdk-cpp"
-    version = "1.7.212"
+    version = "1.7.344"
     license = "Apache 2.0"
-    url = "https://github.com/kmaragon/conan-aws-sdk-cpp"
+    url = "https://github.com/columno/conan-aws-sdk-cpp"
     description = "Conan Package for aws-sdk-cpp"
     short_paths = True
     settings = "os", "compiler", "build_type", "arch"
     generators = "cmake"
     requires = "zlib/1.2.11"
-    exports_sources = ["patch-cmakelists.patch", "patch-c-libs.patch"]
     sdks = ("access_management",
             "acm",
             "alexaforbusiness"
@@ -167,26 +166,15 @@ class AwssdkcppConan(ConanFile):
     default_options = ("shared=False","min_size=False") + tuple("build_" + x + "=False" for x in sdks)
 
     def requirements(self):
-        if self.settings.os != "Windows":
-            if self.settings.os != "Macos":
-                self.requires("openssl/1.1.1d")
-            self.requires("libcurl/7.66.0@bincrafters/stable")
+         if self.settings.os != "Windows":
+             if self.settings.os != "Macos":
+                 self.requires("openssl/1.1.1g")
+             self.requires("libcurl/7.70.0")
 
     def source(self):
         tools.download("https://github.com/aws/aws-sdk-cpp/archive/%s.tar.gz" % self.version, "aws-sdk-cpp.tar.gz")
         tools.unzip("aws-sdk-cpp.tar.gz")
         os.unlink("aws-sdk-cpp.tar.gz")
-
-        # patch the shipped CMakeLists.txt which builds stuff before even declaring a project
-        tools.patch(patch_file=os.path.join(self.source_folder, "patch-cmakelists.patch"))
-        tools.patch(patch_file=os.path.join(self.source_folder, "patch-c-libs.patch"))
-
-        # This small hack might be useful to guarantee proper /MT /MD linkage in MSVC
-        # if the packaged project doesn't have variables to set it properly
-        tools.replace_in_file("aws-sdk-cpp-%s/CMakeLists.txt" % self.version, "project(\"aws-cpp-sdk-all\" VERSION \"${PROJECT_VERSION}\" LANGUAGES CXX)", '''project(aws-cpp-sdk-all VERSION "${PROJECT_VERSION}" LANGUAGES CXX)
-include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-conan_basic_setup()
-''')
        
     def build(self):
         cmake = CMake(self)

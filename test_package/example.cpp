@@ -1,22 +1,53 @@
 #include <iostream>
 #include <memory>
+
 #include <aws/core/Aws.h>
+#include <aws/core/client/DefaultRetryStrategy.h>
+
+#include <aws/core/auth/AWSCredentials.h>
 #include <aws/core/utils/Outcome.h>
-#include <aws/s3/S3Client.h>
-#include <aws/s3/model/PutObjectRequest.h>
+
+#include <aws/dynamodb/DynamoDBClient.h>
+
+namespace
+{
+  class NoRetryStrategy : public Aws::Client::DefaultRetryStrategy
+  {
+  public:
+    long GetMaxAttempts() const override
+    {
+      return 0;
+    }
+
+    bool ShouldRetry(const Aws::Client::AWSError<Aws::Client::CoreErrors>&, long) const override
+    {
+      return false;
+    }
+
+    long CalculateDelayBeforeNextRetry(const Aws::Client::AWSError<Aws::Client::CoreErrors>&,
+                                       long) const override
+    {
+      return 0;
+    }
+  };
+} // namespace
 
 int main() {
-    Aws::SDKOptions options;
-    Aws::InitAPI(options);
+  Aws::SDKOptions options;
+  Aws::InitAPI(options);
 
-    Aws::S3::S3Client client;
+  auto config = Aws::Client::ClientConfiguration();
+  config.connectTimeoutMs = 300;
+  config.requestTimeoutMs = 300;
+  config.region = "eu-west-1";
+  config.endpointOverride = "localhost:8000/";
+  config.scheme = Aws::Http::Scheme::HTTP;
+  config.retryStrategy = std::make_shared<NoRetryStrategy>();
 
-    auto putObjectRequest = Aws::S3::Model::PutObjectRequest().WithBucket("testbucket").WithKey("testabc/foobar/text.txt");
-    auto ss = std::make_shared<std::stringstream>("This is a test");
-    putObjectRequest.SetBody(ss);
-    auto outcome = client.PutObject(putObjectRequest);
+  auto client = Aws::DynamoDB::DynamoDBClient(Aws::Auth::AWSCredentials{"something", "arbitrary"},
+                                            config);
 
-    Aws::ShutdownAPI(options);
-    return 0;
+  Aws::ShutdownAPI(options);
+  return 0;
 }
 
